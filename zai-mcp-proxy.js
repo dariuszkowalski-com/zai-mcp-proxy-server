@@ -266,6 +266,19 @@ class ZAISessionManager {
     }
 }
 
+// Utility function to escape XML special characters
+function escapeXml(text) {
+    if (typeof text !== 'string') {
+        return '';
+    }
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // Main server function
 async function main() {
     const config = parseArgs();
@@ -329,18 +342,21 @@ async function main() {
             const formattedResults = Array.isArray(results) ? results : [];
             const resultCount = formattedResults.length;
             
-            let responseText = `Found ${resultCount} results for: "${search_query}"\n\n`;
+            let responseText = `<search_results query="${escapeXml(search_query)}" count="${resultCount}">\n`;
             
             // Add top 5 results
             const topResults = formattedResults.slice(0, 5);
             topResults.forEach((result, index) => {
-                responseText += `${index + 1}. ${result.title || 'No title'}\n`;
-                responseText += `   ${result.link || 'No link'}\n`;
+                responseText += `  <result index="${index + 1}">\n`;
+                responseText += `    <title>${escapeXml(result.title || 'No title')}</title>\n`;
+                responseText += `    <url>${escapeXml(result.link || 'No link')}</url>\n`;
                 if (result.content) {
-                    responseText += `   ${result.content.substring(0, 200)}...\n`;
+                    responseText += `    <description>${escapeXml(result.content.substring(0, 200))}...</description>\n`;
                 }
-                responseText += '\n';
+                responseText += `  </result>\n`;
             });
+            
+            responseText += `</search_results>`;
             
             return {
                 content: [{
