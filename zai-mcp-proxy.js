@@ -329,15 +329,15 @@ async function main() {
             const formattedResults = Array.isArray(results) ? results : [];
             const resultCount = formattedResults.length;
             
-            let responseText = `🔍 Found ${resultCount} results for: "${search_query}"\n\n`;
+            let responseText = `Found ${resultCount} results for: "${search_query}"\n\n`;
             
             // Add top 5 results
             const topResults = formattedResults.slice(0, 5);
             topResults.forEach((result, index) => {
                 responseText += `${index + 1}. ${result.title || 'No title'}\n`;
-                responseText += `   🔗 ${result.link || 'No link'}\n`;
+                responseText += `   ${result.link || 'No link'}\n`;
                 if (result.content) {
-                    responseText += `   📝 ${result.content.substring(0, 200)}...\n`;
+                    responseText += `   ${result.content.substring(0, 200)}...\n`;
                 }
                 responseText += '\n';
             });
@@ -358,7 +358,7 @@ async function main() {
             return {
                 content: [{
                     type: 'text',
-                    text: `❌ Search error: ${error.message}`
+                    text: `Search error: ${error.message}`
                 }],
                 isError: true
             };
