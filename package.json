@@ -1,0 +1,41 @@
+{
+  "name": "zai-mcp-proxy-server",
+  "version": "1.0.0",
+  "description": "Complete MCP proxy server for Z.AI Web Search Prime API that integrates with Forge as a standard MCP server running through stdio",
+  "main": "zai-mcp-proxy.js",
+  "bin": {
+    "zai-mcp-proxy": "./zai-mcp-proxy.js"
+  },
+  "scripts": {
+    "start": "node zai-mcp-proxy.js",
+    "test": "node test-zai-mcp-proxy.js",
+    "install:global": "npm install -g ."
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "z.ai",
+    "search",
+    "proxy",
+    "forge",
+    "ai",
+    "web-search"
+  ],
+  "author": "Dariusz Kowalski",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.6.0",
+    "zod": "^3.22.4"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dariuszkowalski-com/zai-mcp-proxy-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dariuszkowalski-com/zai-mcp-proxy-server/issues"
+  },
+  "homepage": "https://github.com/dariuszkowalski-com/zai-mcp-proxy-server#readme"
+}

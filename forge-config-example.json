@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "zai-search": {
+      "command": "node",
+      "args": ["/path/to/zai-mcp-proxy.js", "--api-key", "$ZAI_API_KEY"]
+    }
+  }
+}
