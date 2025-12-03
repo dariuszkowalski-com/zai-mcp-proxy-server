@@ -16,8 +16,13 @@
  * }
  */
 
-const { McpServer } = require('@modelcontextprotocol/sdk/server/mcp.js');
+const { Server } = require('@modelcontextprotocol/sdk/server/index.js');
 const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js');
+const { 
+    ListToolsRequestSchema, 
+    CallToolRequestSchema, 
+    ToolSchema 
+} = require('@modelcontextprotocol/sdk/types.js');
 const https = require('https');
 const { URL } = require('url');
 const z = require('zod');
@@ -275,67 +280,90 @@ async function main() {
     const sessionManager = new ZAISessionManager(config.apiKey);
 
     // Create MCP server
-    const server = new McpServer({
+    const server = new Server({
         name: 'zai-search-proxy',
         version: '1.0.0'
+    }, {
+        capabilities: {
+            tools: {},
+            roots: {}
+        }
     });
 
-    // Register search tool
-    server.registerTool(
-        'webSearchPrime',
-        {
-            title: 'Z.AI Web Search Prime',
-            description: 'Z.AI Web Search Prime - fast and accurate search engine',
-            inputSchema: z.object({
-                search_query: z.string().describe('Search query'),
-                content_size: z.enum(['small', 'medium', 'large']).default('medium').describe('Content size of results (default: medium)'),
-                location: z.string().default('us').describe('Search location (default: us)')
-            })
-        },
-        async ({ search_query, content_size = 'medium', location = 'us' }) => {
-            try {
-                const results = await sessionManager.search(search_query, { content_size, location });
-                
-                // Use API results
-                const formattedResults = Array.isArray(results) ? results : [];
-                const resultCount = formattedResults.length;
-                
-                let responseText = `🔍 Found ${resultCount} results for: "${search_query}"\n\n`;
-                
-                // Add top 5 results
-                const topResults = formattedResults.slice(0, 5);
-                topResults.forEach((result, index) => {
-                    responseText += `${index + 1}. ${result.title || 'No title'}\n`;
-                    responseText += `   🔗 ${result.link || 'No link'}\n`;
-                    if (result.content) {
-                        responseText += `   📝 ${result.content.substring(0, 200)}...\n`;
-                    }
-                    responseText += '\n';
-                });
-                
-                return {
-                    content: [{
-                        type: 'text',
-                        text: responseText
-                    }],
-                    _meta: {
-                        totalResults: resultCount,
-                        query: search_query,
-                        source: 'zai-web-search-prime'
-                    }
-                };
-            } catch (error) {
-                console.error('webSearchPrime tool error:', error.message);
-                return {
-                    content: [{
-                        type: 'text',
-                        text: `❌ Search error: ${error.message}`
-                    }],
-                    isError: true
-                };
-            }
+    // Define the tool
+    const webSearchTool = {
+        name: 'webSearchPrime',
+        description: 'Z.AI Web Search Prime - fast and accurate search engine',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                search_query: { type: 'string', description: 'Search query' },
+                content_size: { type: 'string', enum: ['small', 'medium', 'large'], default: 'medium', description: 'Content size of results (default: medium)' },
+                location: { type: 'string', default: 'us', description: 'Search location (default: us)' }
+            },
+            required: ['search_query']
         }
-    );
+    };
+
+    // Handle tools/list request
+    server.setRequestHandler(ListToolsRequestSchema, async () => {
+        return {
+            tools: [webSearchTool]
+        };
+    });
+
+    // Handle tools/call request
+    server.setRequestHandler(CallToolRequestSchema, async (request) => {
+        const { name, arguments: args } = request.params;
+        
+        if (name !== 'webSearchPrime') {
+            throw new Error(`Unknown tool: ${name}`);
+        }
+
+        const { search_query, content_size = 'medium', location = 'us' } = args;
+        
+        try {
+            const results = await sessionManager.search(search_query, { content_size, location });
+            
+            // Use API results
+            const formattedResults = Array.isArray(results) ? results : [];
+            const resultCount = formattedResults.length;
+            
+            let responseText = `🔍 Found ${resultCount} results for: "${search_query}"\n\n`;
+            
+            // Add top 5 results
+            const topResults = formattedResults.slice(0, 5);
+            topResults.forEach((result, index) => {
+                responseText += `${index + 1}. ${result.title || 'No title'}\n`;
+                responseText += `   🔗 ${result.link || 'No link'}\n`;
+                if (result.content) {
+                    responseText += `   📝 ${result.content.substring(0, 200)}...\n`;
+                }
+                responseText += '\n';
+            });
+            
+            return {
+                content: [{
+                    type: 'text',
+                    text: responseText
+                }],
+                _meta: {
+                    totalResults: resultCount,
+                    query: search_query,
+                    source: 'zai-web-search-prime'
+                }
+            };
+        } catch (error) {
+            console.error('webSearchPrime tool error:', error.message);
+            return {
+                content: [{
+                    type: 'text',
+                    text: `❌ Search error: ${error.message}`
+                }],
+                isError: true
+            };
+        }
+    });
 
     // Handle process shutdown
     const cleanup = async () => {
