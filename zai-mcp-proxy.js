@@ -312,7 +312,9 @@ async function main() {
             properties: {
                 search_query: { type: 'string', description: 'Search query' },
                 content_size: { type: 'string', enum: ['small', 'medium', 'large'], default: 'medium', description: 'Content size of results (default: medium)' },
-                location: { type: 'string', default: 'us', description: 'Search location (default: us)' }
+                location: { type: 'string', default: 'us', description: 'Search location (default: us)' },
+                max_results: { type: 'number', default: 5, minimum: 1, maximum: 20, description: 'Maximum number of results to return (default: 5, max: 20)' },
+                full_description: { type: 'boolean', default: false, description: 'Return full description without truncation (default: false)' }
             },
             required: ['search_query']
         }
@@ -333,25 +335,37 @@ async function main() {
             throw new Error(`Unknown tool: ${name}`);
         }
 
-        const { search_query, content_size = 'medium', location = 'us' } = args;
+        const { 
+            search_query, 
+            content_size = 'medium', 
+            location = 'us', 
+            max_results = 5, 
+            full_description = false 
+        } = args;
         
         try {
             const results = await sessionManager.search(search_query, { content_size, location });
             
             // Use API results
             const formattedResults = Array.isArray(results) ? results : [];
-            const resultCount = formattedResults.length;
+            const totalResults = formattedResults.length;
             
-            let responseText = `<search_results query="${escapeXml(search_query)}" count="${resultCount}">\n`;
+            // Limit results to max_results
+            const resultsToReturn = formattedResults.slice(0, Math.min(max_results, totalResults));
+            const actualCount = resultsToReturn.length;
             
-            // Add top 5 results
-            const topResults = formattedResults.slice(0, 5);
-            topResults.forEach((result, index) => {
+            let responseText = `<search_results query="${escapeXml(search_query)}" total_results="${totalResults}" returned="${actualCount}">\n`;
+            
+            resultsToReturn.forEach((result, index) => {
                 responseText += `  <result index="${index + 1}">\n`;
                 responseText += `    <title>${escapeXml(result.title || 'No title')}</title>\n`;
                 responseText += `    <url>${escapeXml(result.link || 'No link')}</url>\n`;
                 if (result.content) {
-                    responseText += `    <description>${escapeXml(result.content.substring(0, 200))}...</description>\n`;
+                    let description = result.content;
+                    if (!full_description && description.length > 200) {
+                        description = description.substring(0, 200) + '...';
+                    }
+                    responseText += `    <description>${escapeXml(description)}</description>\n`;
                 }
                 responseText += `  </result>\n`;
             });
