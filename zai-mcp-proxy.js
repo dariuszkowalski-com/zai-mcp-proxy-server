@@ -378,7 +378,7 @@ async function main() {
                     text: responseText
                 }],
                 _meta: {
-                    totalResults: resultCount,
+                    totalResults: totalResults,
                     query: search_query,
                     source: 'zai-web-search-prime'
                 }
