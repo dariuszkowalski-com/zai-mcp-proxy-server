@@ -311,10 +311,10 @@ async function main() {
             type: 'object',
             properties: {
                 search_query: { type: 'string', description: 'Search query' },
-                content_size: { type: 'string', enum: ['small', 'medium', 'large'], default: 'medium', description: 'Content size of results (default: medium)' },
+                content_size: { type: 'string', enum: ['small', 'medium', 'large'], default: 'medium', description: 'Content size of results (default: medium). Note: API may truncate descriptions regardless of this setting.' },
                 location: { type: 'string', default: 'us', description: 'Search location (default: us)' },
                 max_results: { type: 'number', default: 5, minimum: 1, maximum: 20, description: 'Maximum number of results to return (default: 5, max: 20)' },
-                full_description: { type: 'boolean', default: false, description: 'Return full description without truncation (default: false)' }
+                full_description: { type: 'boolean', default: false, description: 'Return full description without truncation (default: false). Note: Only works if API provides full content.' }
             },
             required: ['search_query']
         }
