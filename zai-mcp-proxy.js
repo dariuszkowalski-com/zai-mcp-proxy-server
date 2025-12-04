@@ -330,7 +330,7 @@ async function main() {
                 },
                 location: {
                     type: 'string',
-                    description: 'Guess which region user is from based on user input. Default is cn. Available values: cn, us'
+                    description: 'Location parameter is ignored - always set to "us" to avoid Z.AI MCP errors. Available values: cn, us'
                 }
             },
             required: ['search_query'],
@@ -361,10 +361,13 @@ async function main() {
             search_recency_filter
         } = args;
         
+        // Force location to 'us' to avoid Z.AI MCP errors
+        const finalLocation = 'us';
+        
         try {
             const results = await sessionManager.search(search_query, { 
                 content_size, 
-                location, 
+                location: finalLocation, 
                 search_domain_filter, 
                 search_recency_filter 
             });
