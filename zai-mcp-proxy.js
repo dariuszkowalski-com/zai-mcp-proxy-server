@@ -196,7 +196,9 @@ class ZAISessionManager {
                 "arguments": {
                     "search_query": query,
                     "content_size": options.contentSize || "medium",
-                    "location": options.location || "us"
+                    "location": options.location || "us",
+                    ...(options.search_domain_filter && { "search_domain_filter": options.search_domain_filter }),
+                    ...(options.search_recency_filter && { "search_recency_filter": options.search_recency_filter })
                 }
             }
         };
@@ -303,20 +305,36 @@ async function main() {
         }
     });
 
-    // Define the tool
+    // Define the tool - exact match to Z.AI MCP
     const webSearchTool = {
         name: 'webSearchPrime',
-        description: 'Z.AI Web Search Prime - fast and accurate search engine',
+        description: 'Search web information, returns results including web page title, web page URL, web page summary, website name, website icon, etc.',
         inputSchema: {
             type: 'object',
             properties: {
-                search_query: { type: 'string', description: 'Search query' },
-                content_size: { type: 'string', enum: ['small', 'medium', 'large'], default: 'medium', description: 'Content size of results (default: medium). Note: API may truncate descriptions regardless of this setting.' },
-                location: { type: 'string', default: 'us', description: 'Search location (default: us)' },
-                max_results: { type: 'number', default: 5, minimum: 1, maximum: 20, description: 'Maximum number of results to return (default: 5, max: 20)' },
-                full_description: { type: 'boolean', default: false, description: 'Return full description without truncation (default: false). Note: Only works if API provides full content.' }
+                search_query: { 
+                    type: 'string', 
+                    description: 'Content to be searched, it is recommended that search query not exceed 70 characters'
+                },
+                search_domain_filter: {
+                    type: 'string',
+                    description: 'Used to limit scope of search results, only return content from specified whitelist domains, such as: www.example.com.'
+                },
+                search_recency_filter: {
+                    type: 'string',
+                    description: 'Search for web pages within a specified time range. Default is noLimit. Available values: oneDay, oneWeek, oneMonth, oneYear, noLimit'
+                },
+                content_size: {
+                    type: 'string',
+                    description: 'Control number of words in web page summary; default value is medium - medium: balanced mode, suitable for most queries. 400-600 words - high: maximize context to provide more comprehensive answers, but higher cost, 2500 words.'
+                },
+                location: {
+                    type: 'string',
+                    description: 'Guess which region user is from based on user input. Default is cn. Available values: cn, us'
+                }
             },
-            required: ['search_query']
+            required: ['search_query'],
+            additionalProperties: false
         }
     };
 
@@ -337,35 +355,42 @@ async function main() {
 
         const { 
             search_query, 
-            content_size = 'medium', 
-            location = 'us', 
-            max_results = 5, 
-            full_description = false 
+            content_size = 'medium',
+            location = 'us',
+            search_domain_filter,
+            search_recency_filter
         } = args;
         
         try {
-            const results = await sessionManager.search(search_query, { content_size, location });
+            const results = await sessionManager.search(search_query, { 
+                content_size, 
+                location, 
+                search_domain_filter, 
+                search_recency_filter 
+            });
             
             // Use API results
             const formattedResults = Array.isArray(results) ? results : [];
             const totalResults = formattedResults.length;
             
-            // Limit results to max_results
-            const resultsToReturn = formattedResults.slice(0, Math.min(max_results, totalResults));
-            const actualCount = resultsToReturn.length;
+            // Return all results from Z.AI MCP (no max_results limiting)
+            let responseText = `<search_results query="${escapeXml(search_query)}" total_results="${totalResults}" returned="${totalResults}">\n`;
             
-            let responseText = `<search_results query="${escapeXml(search_query)}" total_results="${totalResults}" returned="${actualCount}">\n`;
-            
-            resultsToReturn.forEach((result, index) => {
+            formattedResults.forEach((result, index) => {
                 responseText += `  <result index="${index + 1}">\n`;
                 responseText += `    <title>${escapeXml(result.title || 'No title')}</title>\n`;
                 responseText += `    <url>${escapeXml(result.link || 'No link')}</url>\n`;
                 if (result.content) {
-                    let description = result.content;
-                    if (!full_description && description.length > 200) {
-                        description = description.substring(0, 200) + '...';
-                    }
-                    responseText += `    <description>${escapeXml(description)}</description>\n`;
+                    responseText += `    <description>${escapeXml(result.content)}</description>\n`;
+                }
+                if (result.media) {
+                    responseText += `    <media>${escapeXml(result.media)}</media>\n`;
+                }
+                if (result.icon) {
+                    responseText += `    <icon>${escapeXml(result.icon)}</icon>\n`;
+                }
+                if (result.publish_date) {
+                    responseText += `    <publish_date>${escapeXml(result.publish_date)}</publish_date>\n`;
                 }
                 responseText += `  </result>\n`;
             });
